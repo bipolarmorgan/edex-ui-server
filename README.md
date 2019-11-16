@@ -44,3 +44,4 @@ Current specs:
 
 ### Breaking up
  - (tbd - how to monitor SSH pipe?)
+   - Possible solution: Monitor # of active connections with each IP, if after succesful pipe setup this number drops back to <2, close the pipe

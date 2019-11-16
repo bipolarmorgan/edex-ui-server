@@ -1,7 +1,8 @@
-/* AutoWhitelist class
-	Maintains an automatically updating list of remote IP addresses that have an active socket with the current machine.
-	Is used as a first line of defense to filter out connection attempts from rogue clients.
-	Default refresh rate of the whitelist is 1000ms.
+/*
+ * AutoWhitelist class
+ * Maintains an automatically updating list of remote IP addresses that have an active socket with the current machine.
+ * Is used as a first line of defense to filter out connection attempts from rogue clients.
+ * Default refresh rate of the whitelist is 1000ms.
 */
 
 class AutoWhitelist {
@@ -9,6 +10,7 @@ class AutoWhitelist {
 		const {networkConnections} = require('systeminformation');
 		this.lookupConns = networkConnections;
 		this.ipaddr = require('ipaddr.js');
+		this.isLocal = require('is-localhost-ip');
 
 		this.list = [];
 
@@ -23,7 +25,7 @@ class AutoWhitelist {
 					return;
 				}
 
-				if (this.list.includes(ip) === -1) {
+				if (!this.list.includes(ip)) {
 					this.list.push(ip);
 				}
 			});
@@ -47,7 +49,11 @@ class AutoWhitelist {
 			throw new Error('Detected IP address is too short');
 		}
 
-		if (this.list.includes(ip) !== -1) {
+		if (this.list.includes(ip)) {
+			return true;
+		}
+
+		if (process.env.NODE_ENV !== 'production' && isLocal(ip)) {
 			return true;
 		}
 

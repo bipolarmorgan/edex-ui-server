@@ -112,7 +112,6 @@ wss.on('connection', async (ws, req) => {
 		.then(() => authConn(ws, req))
 		.then(() => pipeConn(ws, req))
 		.catch(error => {
-			console.log(error);
 			// Connection has already been closed with an appropriate error status
 			// in one of the promises above.
 			// Now we just need to terminate the socket pipe,
