@@ -19,11 +19,11 @@ class AutoWhitelist {
 		this.lookupConns().then(conns => {
 			conns.forEach(c => {
 				const ip = c.peeraddress;
-				if (c.state !== 'ESTABLISHED' || ip === '0.0.0.0' || ip === '127.0.0.1' || ip === '::') {
+				if (c.state !== 'ESTABLISHED' || ip === '0.0.0.0') {
 					return;
 				}
 
-				if (this.list.indexOf(ip) === -1) {
+				if (this.list.includes(ip) === -1) {
 					this.list.push(ip);
 				}
 			});
@@ -47,7 +47,7 @@ class AutoWhitelist {
 			throw new Error('Detected IP address is too short');
 		}
 
-		if (this.list.indexOf(ip) !== -1) {
+		if (this.list.includes(ip) !== -1) {
 			return true;
 		}
 

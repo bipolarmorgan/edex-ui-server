@@ -3,23 +3,37 @@
   "version": "0.0.1",
   "description": "Remote monitoring backend for edex-ui",
   "main": "index.js",
+  "bin": "index.js",
   "scripts": {
-    "test": "xo",
-    "lint": "xo --fix",
+    "test": "./node_modules/.bin/xo",
+    "lint": "./node_modules/.bin/xo --fix",
+    "build-worker": "./node_modules/.bin/pkg -t node12-linux-x64 -o workers/worker workers/worker-source.js",
+    "prebuild": "npm run build-worker",
+    "build": "./node_modules/.bin/pkg -t node12-linux-x64 --out-path dist/ .",
     "start": "node index.js"
+  },
+  "pkg": {
+    "assets": ["workers/worker"]
+  },
+  "xo": {
+    "rules": {
+      "unicorn/no-process-exit": 0
+    }
   },
   "repository": {
     "type": "git",
     "url": "github.com/GitSquared/edex-ui-server"
   },
-  "author": "GitSquared <squared@codebrew.fr>",
+  "author": "Gabriel SAILLARD <gabriel@saillard.dev> (https://gaby.dev)",
   "license": "GPL-3.0",
   "dependencies": {
-    "ipaddr.js": "^1.9.0",
-    "systeminformation": "^4.0.11",
-    "ws": "^6.1.4"
+    "ipaddr.js": "^1.9.1",
+    "nanoid": "^2.1.7",
+    "systeminformation": "^4.15.3",
+    "ws": "^7.2.0"
   },
   "devDependencies": {
-    "xo": "^0.24.0"
+    "pkg": "^4.4.0",
+    "xo": "^0.25.3"
   }
 }
