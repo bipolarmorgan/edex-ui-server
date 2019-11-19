@@ -62,7 +62,9 @@ class Worker {
 				reject(new Error('Worker child process is dead!'));
 			}
 
-			req.id = this.nanoid();
+			if (!req.id) {
+				req.id = this.nanoid();
+			}
 
 			this.loop.once(req.id+'-res', req => {
 				this.loop.removeAllListeners(req.id+'-err');

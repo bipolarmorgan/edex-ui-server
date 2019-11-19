@@ -74,6 +74,16 @@ async function validateConn(ws, req) {
 async function authConn(ws, req) {
 	// TODO
 
+	ws.worker = await workerManager.spawnWorker('/home/squared', 1000, 1000).catch(error => {
+		throw error;
+	});
+
+	ws.on('close', () => {
+		workerManager.killWorker(ws.worker.id);
+	});
+
+	console.log(`Worker ${ws.worker.id} created`);
+
 	if (ws.readyState !== 1) {
 		throw new Error('break');
 	}
@@ -81,12 +91,6 @@ async function authConn(ws, req) {
 
 // Start event loop
 async function pipeConn(ws, req) {
-	ws.worker = await workerManager.spawnWorker('/home/squared', 1000, 1000).catch(error => {
-		throw error;
-	});
-
-	console.log(`Worker ${ws.worker.id} created`);
-
 	let i = setInterval(() => {
 		console.log(ws.worker.stats);
 	}, 1000);
@@ -107,7 +111,6 @@ async function pipeConn(ws, req) {
 	});
 	
 	ws.on('close', () => {
-		workerManager.killWorker(ws.worker.id);
 		clearInterval(i);
 	});
 
@@ -148,9 +151,9 @@ wss.on('connection', async (ws, req) => {
 });
 
 /*
- * Log server address & port
+ * Log server address & port - even in production
 */
-console.log(`eDEX-UI Remote Monitoring Server listening at ${(typeof wss.address() === 'string') ? wss.address : wss.address().address + ':' + wss.address().port}`);
+process.stdout.write(`eDEX-UI Remote Monitoring Server listening at ${(typeof wss.address() === 'string') ? wss.address : wss.address().address + ':' + wss.address().port}\n`);
 
 /*
  * Graceful server shutdown function
