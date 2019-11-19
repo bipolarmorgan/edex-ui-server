@@ -53,7 +53,7 @@ class AutoWhitelist {
 			return true;
 		}
 
-		if (process.env.NODE_ENV !== 'production' && isLocal(ip)) {
+		if (process.env.NODE_ENV !== 'production' && this.isLocal(ip)) {
 			return true;
 		}
 

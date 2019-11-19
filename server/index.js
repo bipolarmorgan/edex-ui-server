@@ -10,18 +10,34 @@
 */
 
 /*
+ * Suppress logs on production
+*/
+if (process.env.NODE_ENV === 'production' && !process.argv.includes('--debug')) {
+	console.log = () => {
+		return true;
+	}
+}
+
+/*
  * require() calls
 */
 const WebSocket = require('ws');
+const Config = require('./config/config-storage.class.js');
 const AutoWhitelist = require('./security/auto-whitelist.class.js');
 const WorkerManager = require('./workers/manager.class.js');
+
+/*
+ * Load config
+*/
+const config = new Config();
 
 /*
  * Request validation
 */
 const validReqTypes = [
-	'cpu'
-];
+	// eDEX Remote-specific functions
+	'version'
+].concat(Object.keys(require('systeminformation'))); // Concat with functions provided by dependencies
 
 /*
  * Load security & authentication modules
@@ -69,20 +85,30 @@ async function pipeConn(ws, req) {
 		throw error;
 	});
 
+	console.log(`Worker ${ws.worker.id} created`);
+
+	let i = setInterval(() => {
+		console.log('Worker jobs queue size:', ws.worker.queue.length);
+	}, 2000);
+
 	ws.on('message', async msg => {
-		console.log(msg);
-		ws.send('Got: ' + msg);
-
 		const data = JSON.parse(msg);
-		console.log('request data:', data);
+		// console.log('request data:', data);
 
-		if (typeof data.type === 'string' && typeof data.args === 'object') {
+		if (typeof data.type === 'string' && typeof data.args === 'object' && validReqTypes.includes(data.type)) {
 			ws.worker.processReq(data).then(res => {
 				ws.send(JSON.stringify(res, 0, 2));
 			}).catch(error => {
-				throw error;
+				console.log(`Worker ${ws.worker.id} errored on '${error[1]}' request (#${error[0]}):\n${error[2]}`);
 			});
+		} else {
+			ws.send('Bad request');
 		}
+	});
+	
+	ws.on('close', () => {
+		workerManager.killWorker(ws.worker.id);
+		clearInterval(i);
 	});
 
 	console.log('Pipe activated');
@@ -95,7 +121,7 @@ async function pipeConn(ws, req) {
 /*
  * Initiate websocket server
 */
-const wss = new WebSocket.Server({port: 8000});
+const wss = new WebSocket.Server({port: config.port});
 
 wss.on('connection', async (ws, req) => {
 	// Store remote IP address in connection object

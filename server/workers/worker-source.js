@@ -15,7 +15,7 @@ process.stdin.resume();
 process.stdin.on('data', async req => {
 	req = JSON.parse(req);
 	const res = await si[req.type](...req.args);
-	process.stdout.write(JSON.stringify(res));
+	process.stdout.write(JSON.stringify(res)+'--END');
 });
 
 process.on('SIGINT', () => {

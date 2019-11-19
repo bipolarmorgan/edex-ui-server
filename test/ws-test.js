@@ -15,12 +15,11 @@ wsc.on('error', error => {
 });
 
 wsc.on('message', data => {
-	process.stdout.write(`\n${data}\n> `);
-	process.stdin.resume();
+	process.stdout.write(`\n↓ RECEIVED:\n${data}\n> `);
 });
 
 wsc.once('open', () => {
-	process.stdout.write('Connected to 127.0.0.1:8000\n\n> ');
+	process.stdout.write('Connected to 127.0.0.1:8000\n\n > ');
 	process.stdin.resume();
 
 	process.stdin.on('data', async chunk => {
@@ -36,6 +35,10 @@ wsc.once('open', () => {
 			type: chunk,
 			args: []
 		}));
+
+		process.stdout.write(`↑> `);
+
+		process.stdin.resume();
 	});
 });
 
