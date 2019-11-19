@@ -9,8 +9,7 @@ class Worker {
 		this.nanoid = require('nanoid/non-secure');
 
 		this.dead = false;
-		this.queue = [];
-		this.currentReq = null;
+		this.stats = [0, 0];
 		this.loop = new EventEmitter();
 
 		this.cp = Cp.spawn(path, [], {
@@ -21,22 +20,20 @@ class Worker {
 			stdio: [
 				'pipe',
 				'pipe',
-				'pipe'
+				'pipe',
+				'ipc'
 			]
 		});
 
 		this.cp.on('exit', () => {
 			this.dead = true;
 		});
-
-		this.cp.stdout.on('data', data => {
-			this.dataListener(data);
-		});
 		this.cp.on('error', error => {
-			this.errorListener(error);
+			throw error;
 		});
-		this.cp.stderr.on('data', data => {
-			this.errorListener(data);
+
+		this.cp.on('message', data => {
+			this.msgListener(data);
 		});
 
 		return new Proxy(this, {
@@ -49,57 +46,12 @@ class Worker {
 		});
 	}
 
-	dataListener(buffer) {
-		buffer = buffer.toString();
-
-		if (buffer.endsWith('}--END')) {
-			buffer = buffer.slice(0, -5);
-
-			let id = this.currentReq._id;
-			let raw = this.currentReq._res+buffer;
-
-			this.currentReq = null;
-			this.wakeup();
-
-			try {
-				let data = JSON.parse(raw);
-
-			console.log(`req ${id} DONE`);
-				this.loop.emit(id+'-res', data);
-			} catch (error) {
-			console.log(`req ${ID} ERROR`);
-				this.loop.emit(id+'-err', error);
-			}
+	msgListener(req) {
+		this.stats[1]++;
+		if (req.success) {
+			this.loop.emit(req.id+'-res', req);
 		} else {
-			this.currentReq._res += buffer;
-		}
-	}
-
-	errorListener(error) {
-		if (typeof error === 'object') {
-			error = error.toString();
-		}
-
-		this.loop.emit(this.currentReq._id+'-err', error);
-
-		this.currentReq = null;
-		this.wakeup();
-	}
-
-	wakeup() {
-		if (!this.currentReq && this.queue.length > 0) {
-			this.currentReq = this.queue.shift();
-			this.currentReq._res = '';
-
-			if (this.currentReq.type === 'processes') {
-				console.log(`req ${this.currentReq._id} DENIED ${this.currentReq.type}`);
-				this.currentReq = null;
-				this.wakeup();
-				return;
-			}
-
-		console.log(`req ${this.currentReq._id} PROCESSING ${this.currentReq.type}`);
-			this.cp.stdin.write(JSON.stringify(this.currentReq));
+			this.loop.emit(req.id+'-err', req);
 		}
 	}
 
@@ -110,38 +62,21 @@ class Worker {
 				reject(new Error('Worker child process is dead!'));
 			}
 
-			req._id = this.nanoid();
+			req.id = this.nanoid();
 
-			this.loop.once(req._id+'-res', res => {
-				this.loop.removeAllListeners(req._id+'-err');
-				resolve(res);
+			this.loop.once(req.id+'-res', req => {
+				this.loop.removeAllListeners(req.id+'-err');
+				resolve(req.res);
 			});
 
-			this.loop.once(req._id+'-err', error => {
-				this.loop.removeAllListeners(req._id+'-res');
-
-				reject([req._id, req.type, error]);
+			this.loop.once(req.id+'-err', req => {
+				this.loop.removeAllListeners(req.id+'-res');
+				reject([req.id, req.type, error]);
 			});
 
-			this.queue.push(req);
-			this.wakeup();
+			this.stats[0]++;
+			this.cp.send(req);
 		});
-	}
-
-	finishRequest() {
-		let id = this.currentReq._id;
-		let raw = this.currentReq._res;
-
-		this.currentReq = null;
-		this.wakeup();
-
-		try {
-			let data = JSON.parse(raw);
-
-			this.loop.emit(id+'-res', data);
-		} catch (error) {
-			this.loop.emit(id+'-err', error);
-		}
 	}
 }
 

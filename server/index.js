@@ -88,8 +88,8 @@ async function pipeConn(ws, req) {
 	console.log(`Worker ${ws.worker.id} created`);
 
 	let i = setInterval(() => {
-		console.log('Worker jobs queue size:', ws.worker.queue.length);
-	}, 2000);
+		console.log(ws.worker.stats);
+	}, 1000);
 
 	ws.on('message', async msg => {
 		const data = JSON.parse(msg);
