@@ -83,7 +83,8 @@ class Worker {
 	}
 }
 
-/* WorkerManager class
+/*
+ * WorkerManager class
  * Copies the worker binary from the bundle to /tmp
  * to allow for `spawn` syscalls.
  * Creates and manages workers.
