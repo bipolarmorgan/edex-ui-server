@@ -18,7 +18,8 @@ class Config {
 		}
 
 		this.storagePath = path.join(configPath, 'config.json');
-		this.storageObject = [];
+		this.storageObject = {};
+		this.defaultConfig = require('./default.config.js');
 		this.writeDelay = 1500;
 		this.bufferedWriteOpsCount = 0;
 		this.flushTimeout = null;
@@ -29,17 +30,27 @@ class Config {
 			this.writeDefaultConfig();
 		}
 
+		process.on('SIGINT', () => {
+			this.shutdown();
+		});
+		process.on('SIGTERM', () => {
+			this.shutdown();
+		});
+
 		return new Proxy(this.storageObject, {
 			set: (target, prop, value) => {
 				if (this.bufferedWriteOpsCount <= 20) {
 					if (this.flushTimeout !== null) {
 						clearTimeout(this.flushTimeout);
 					}
+
 					this.flushTimeout = setTimeout(() => {
 						this.flush();
 					}, this.writeDelay);
 					this.bufferedWriteOpsCount++;
 				}
+
+				// eslint-disable-next-line no-return-assign
 				return target[prop] = value;
 			}
 		});
@@ -59,9 +70,13 @@ class Config {
 	}
 
 	writeDefaultConfig() {
-		this.storageObject = {
-			port: 8000
-		};
+		Object.assign(this.storageObject, this.defaultConfig);
+		this.flush();
+	}
+
+	shutdown() {
+		const fs = require('fs');
+		fs.writeFileSync(this.storagePath, JSON.stringify(this.storageObject, 0, 2));
 	}
 }
 

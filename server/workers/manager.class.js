@@ -9,7 +9,6 @@ class Worker {
 		this.nanoid = require('nanoid/non-secure');
 
 		this.dead = false;
-		this.stats = [0, 0];
 		this.loop = new EventEmitter();
 
 		this.cp = Cp.spawn(path, [], {
@@ -41,23 +40,22 @@ class Worker {
 				if (prop in instance) {
 					return instance[prop];
 				}
+
 				return instance.cp[prop];
 			}
 		});
 	}
 
 	msgListener(req) {
-		this.stats[1]++;
 		if (req.success) {
-			this.loop.emit(req.id+'-res', req);
+			this.loop.emit(req.id + '-res', req);
 		} else {
-			this.loop.emit(req.id+'-err', req);
+			this.loop.emit(req.id + '-err', req);
 		}
 	}
 
 	processReq(req) {
 		return new Promise((resolve, reject) => {
-
 			if (this.dead) {
 				reject(new Error('Worker child process is dead!'));
 			}
@@ -66,17 +64,20 @@ class Worker {
 				req.id = this.nanoid();
 			}
 
-			this.loop.once(req.id+'-res', req => {
-				this.loop.removeAllListeners(req.id+'-err');
+			this.loop.once(req.id + '-res', req => {
+				this.loop.removeAllListeners(req.id + '-err');
 				resolve(req.res);
 			});
 
-			this.loop.once(req.id+'-err', req => {
-				this.loop.removeAllListeners(req.id+'-res');
-				reject([req.id, req.type, error]);
+			this.loop.once(req.id + '-err', req => {
+				this.loop.removeAllListeners(req.id + '-res');
+
+				const err = new Error(req.res);
+				delete req.res;
+				err.req = req;
+				reject(err);
 			});
 
-			this.stats[0]++;
 			this.cp.send(req);
 		});
 	}

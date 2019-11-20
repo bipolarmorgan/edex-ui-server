@@ -15,13 +15,17 @@
 if (process.env.NODE_ENV === 'production' && !process.argv.includes('--debug')) {
 	console.log = () => {
 		return true;
-	}
+	};
 }
 
 /*
  * require() calls
 */
+const os = require('os');
+const fs = require('fs');
+const path = require('path');
 const WebSocket = require('ws');
+const systeminformation = require('systeminformation');
 const Config = require('./config/config-storage.class.js');
 const AutoWhitelist = require('./security/auto-whitelist.class.js');
 const WorkerManager = require('./workers/manager.class.js');
@@ -30,6 +34,7 @@ const WorkerManager = require('./workers/manager.class.js');
  * Load config
 */
 const config = new Config();
+const configPath = path.join(os.homedir(), '.config/eDEX-UI/RemoteServer');
 
 /*
  * Request validation
@@ -37,7 +42,7 @@ const config = new Config();
 const validReqTypes = [
 	// eDEX Remote-specific functions
 	'version'
-].concat(Object.keys(require('systeminformation'))); // Concat with functions provided by dependencies
+].concat(Object.keys(systeminformation)); // Concat with functions provided by dependencies
 
 /*
  * Load security & authentication modules
@@ -54,7 +59,7 @@ const workerManager = new WorkerManager();
 */
 
 // Validate connection requests - kind of like a firewall
-async function validateConn(ws, req) {
+async function validateConn(ws, _) {
 	// Check that remote is in the active connections whitelist
 	await autoWhitelist.check(ws.addr).then(passed => {
 		console.log(`Whitelist check: ${passed}`);
@@ -71,7 +76,7 @@ async function validateConn(ws, req) {
 }
 
 // Authenticate user
-async function authConn(ws, req) {
+async function authConn(ws, _) {
 	// TODO
 
 	ws.worker = await workerManager.spawnWorker('/home/squared', 1000, 1000).catch(error => {
@@ -90,11 +95,7 @@ async function authConn(ws, req) {
 }
 
 // Start event loop
-async function pipeConn(ws, req) {
-	let i = setInterval(() => {
-		console.log(ws.worker.stats);
-	}, 1000);
-
+async function pipeConn(ws, _) {
 	ws.on('message', async msg => {
 		const data = JSON.parse(msg);
 		// console.log('request data:', data);
@@ -103,15 +104,11 @@ async function pipeConn(ws, req) {
 			ws.worker.processReq(data).then(res => {
 				ws.send(JSON.stringify(res, 0, 2));
 			}).catch(error => {
-				console.log(`Worker ${ws.worker.id} errored on '${error[1]}' request (#${error[0]}):\n${error[2]}`);
+				console.log(`Worker ${ws.worker.id} errored on '${error.req.type}' request (#${error.req.id}):\n${error.message}`);
 			});
 		} else {
 			ws.send('Bad request');
 		}
-	});
-	
-	ws.on('close', () => {
-		clearInterval(i);
 	});
 
 	console.log('Pipe activated');
@@ -124,7 +121,18 @@ async function pipeConn(ws, req) {
 /*
  * Initiate websocket server
 */
-const wss = new WebSocket.Server({port: config.port});
+let httpServer;
+
+if (config.useSSL) {
+	httpServer = require('https').createServer({
+		key: fs.readFileSync(configPath + '/key.pem'),
+		cert: fs.readFileSync(configPath + '/cert.pem')
+	});
+} else {
+	httpServer = require('http').createServer();
+}
+
+const wss = new WebSocket.Server({port: config.port, server: httpServer});
 
 wss.on('connection', async (ws, req) => {
 	// Store remote IP address in connection object
@@ -140,7 +148,7 @@ wss.on('connection', async (ws, req) => {
 	validateConn(ws, req)
 		.then(() => authConn(ws, req))
 		.then(() => pipeConn(ws, req))
-		.catch(error => {
+		.catch(_ => {
 			// Connection has already been closed with an appropriate error status
 			// in one of the promises above.
 			// Now we just need to terminate the socket pipe,
