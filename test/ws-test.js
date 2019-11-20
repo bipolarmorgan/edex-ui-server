@@ -31,12 +31,13 @@ wsc.once('open', () => {
 			process.exit(0);
 		}
 
-		wsc.send(JSON.stringify({
-			type: chunk,
-			args: []
-		}));
+		let payload = JSON.stringify({
+			type: (chunk.includes('(')) ? chunk.slice(0, chunk.indexOf('(')) : chunk,
+			args: (chunk.includes('(')) ? chunk.slice(chunk.indexOf('(')+1, chunk.length-1).split(', ') : []
+		});
 
-		process.stdout.write(`↑> `);
+		wsc.send(payload);
+		process.stdout.write(`↑> ${payload}`);
 
 		process.stdin.resume();
 	});
