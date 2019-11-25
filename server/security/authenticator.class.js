@@ -57,7 +57,26 @@ class PubKey {
 			n
 		}, 'components-public');
 
-		return key;
+		this.key = key;
+	}
+
+	getQAchallenge() {
+		if (!this.key) {
+			throw new Error('Key not available');
+		}
+
+		const nanoid = require('nanoid');
+		this.challenge = nanoid();
+
+		return this.key.encrypt(this.challenge);
+	}
+
+	checkQAresponse(res) {
+		if (!this.challenge) {
+			throw new Error('No stored challenge');
+		}
+
+		return (res.toString('ascii') === this.challenge);
 	}
 }
 
@@ -75,4 +94,5 @@ class Authenticator {
 	}
 }
 
-module.exports = Authenticator;
+module.exports = PubKey;
+// module.exports = Authenticator;

@@ -9,8 +9,9 @@ Any questions, recommendations, ideas can be sent directly to my email: `gabriel
 ---
 
 Server security is ensured by:
- - Using public-key cryptography to authenticate users and encrypt sensitive monitoring information
- - Outright denying access to clients who do not already have an active connection pipe with the server.
+ - Outright denying access to clients who do not already have an active connection pipe with the server
+ - Reusing SSH keys to authentify remote monitoring requests
+ - Transmitting over SSL
 
 Current specs:
 
@@ -18,7 +19,8 @@ Current specs:
 
  - Server must have eDEX remote backend running as root
  - Server must have users public keys stored somewhere (tbd)
- - Client must have server's IP and corresponding secret key in storage (also tbd)
+ - Client must have server's IP and corresponding SSL CA certificate in storage (also tbd)
+ - Client and Server must use SSH keys auth
 
 ### Trigger
  - Client connects via ssh to server (in terminal, out of the eDEX UI scope)
@@ -30,7 +32,7 @@ Current specs:
  - Client reaches server's remote monitoring websocket
  - Server looks up client's IP address in its active remote connections lists
  - If a pipe is already opened with client; proceed, otherwise, connection is terminated
- - Server sends cryptographic challenge to client
+ - Server sends cryptographic challenge to client (encrypt random string with SSH pubkey)
  - Client decrypts the challenge and sends it back
  - If challenge is OK, proceed to linking, otherwise, connection terminated
 
@@ -45,3 +47,24 @@ Current specs:
 ### Breaking up
  - (tbd - how to monitor SSH pipe?)
    - Possible solution: Monitor # of active connections with each IP, if after succesful pipe setup this number drops back to <2, close the pipe
+
+---
+
+Already implemented:
+
+ - [x] Websocket server with SSH support
+ - [x] Configuration file at `~/.config/eDEX-UI/RemoteServer/config.json`
+ - [x] Deny connections that don't already have an active pipe (auto-whitelist)
+ - [x] Parse SSH public keys and create Q-A challenges
+ - [x] Managed monitoring relay processes (workers), launched with os-user perm level via `setuid`
+   - [x] Serialized requests, organic processing flow via IPC (similar to eDEX multithread proxy but single-threaded)
+     - Current tests show remote server overhead approx. 1ms/req
+     - Performance on large-scale deployments serving monitoring to lots of eDEX clients currently untested, expected memory footprint +70M per remote connection
+     - One connection, one relay process
+ - [x] Single-binary, ~0 deps build output
+
+Currently the server is only capable of processing `systeminformation` requests.
+Linking client to server has been tested succesfully but there's still some work to do on connection trigger, authentication, breaking up and error handling.
+
+**ETA before 2020**
+Should be bundled with eDEX-UI v3 release.
