@@ -21,7 +21,8 @@
     "rules": {
       "unicorn/no-process-exit": 0,
       "capitalized-comments": 0
-    }
+    },
+    "reportUnusedDisableDirectives": true
   },
   "repository": {
     "type": "git",
