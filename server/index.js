@@ -26,6 +26,8 @@ const fs = require('fs');
 const path = require('path');
 const WebSocket = require('ws');
 const systeminformation = require('systeminformation');
+
+const wsHelpers = require('./helpers/comms.js');
 const Config = require('./config/config-storage.class.js');
 const AutoWhitelist = require('./security/auto-whitelist.class.js');
 const WorkerManager = require('./workers/manager.class.js');
@@ -146,6 +148,7 @@ wss.on('connection', async (ws, req) => {
 	});
 
 	validateConn(ws, req)
+		.then(() => wsHelpers.wrap(ws))
 		.then(() => authConn(ws, req))
 		.then(() => pipeConn(ws, req))
 		.catch(_ => {

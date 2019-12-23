@@ -1,27 +1,16 @@
 /*
- * User class
- * Represents an authenticated OS-level user.
-*/
-class User {
-	constructor(home, uid, gid, key) {
-		// TODO
-	}
-}
-
-/*
  * PubKey class
  * Reads, parses and provides a usable node-rsa key object
  * from a ssh-rsa PEM-encoded public key file.
 */
 class PubKey {
-	constructor(path) {
+	constructor(armored) {
 		const Rsa = require('node-rsa');
-		const fs = require('fs');
 
 		/* eslint-disable no-multi-spaces */
 		let key = Buffer.from(
-			fs.readFileSync(path, {encoding: 'utf8'})    // Read .pub key
-				.split(' ')[1]                            // Trim ssh-rsa prefix and comments
+			armored                                      // Read .pub key
+			.split(' ')[1]                               // Trim ssh-rsa prefix and comments
 			, 'base64');                                 // Decode base64 body
 
 		// Deconstruct 'key' buffer step-by-step
@@ -84,15 +73,23 @@ class PubKey {
 }
 
 /*
+ * User class
+ * Represents an authenticated OS-level user.
+*/
+class User {
+	constructor(home, uid, gid, key) {
+		// TODO
+	}
+}
+
+/*
  * Authenticator class
  * Authenticates remote monitoring requests,
  * match them with OS-level users.
 */
 class Authenticator {
 	constructor() {
-		const fs = require('fs');
 		const os = require('os');
-		const path = require('path');
 		this.rootHomeDir = '/home';
 
 		if (os.type() !== 'Linux') {
@@ -100,8 +97,22 @@ class Authenticator {
 		}
 	}
 
-	auth() {
+	async auth(ws, sslCert) {
+		const fs = require('fs');
+		const path = require('path');
 
+		ws.query('Identify yourself, program.')
+			.then(name => {
+				if (typeof name !== 'string' || !/^[a-z0-9]+$/i.test(name)) {
+					throw new Error('Invalid system user name');
+				}
+
+				// TODO
+				// Check if user home folder exists, retrieve uid and gid somehow, load keys and provide challenge
+			})
+			.catch(error => {
+				ws.send(`${error.message}. Fuck off.`);
+			});
 	}
 }
 
